@@ -26,7 +26,8 @@ def process_row(client, row, args):
         }
     )
 
-    print(f'response["response"]: {response["response"]}\n')
+    print(f'prompt: {prompt}\n')
+    print(f'response: {response["response"]}\n')
     generated_query = (
         response["response"]
         .split(";")[0]
@@ -36,6 +37,7 @@ def process_row(client, row, args):
     )
     end_time = time()
     print(f'generated_query: {generated_query}\n')
+    print('\n\n\n\n\n')
 
     row["generated_query"] = generated_query
     row["latency_seconds"] = end_time - start_time
