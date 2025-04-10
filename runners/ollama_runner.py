@@ -34,6 +34,8 @@ def process_row(client, row, args):
         + ";"
     )
     end_time = time()
+    print(f'generated_query: {generated_query}')
+
     row["generated_query"] = generated_query
     row["latency_seconds"] = end_time - start_time
     golden_query = row["query"]
