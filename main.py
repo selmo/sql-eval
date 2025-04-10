@@ -117,6 +117,10 @@ if __name__ == "__main__":
         from runners.llama_cpp_runner import run_llama_cpp_eval
 
         run_llama_cpp_eval(args)
+    elif args.model_type == "ollama":
+        from runners.ollama_runner import run_ollama_eval
+
+        run_ollama_eval(args)
     elif args.model_type == "mlx":
         from runners.mlx_runner import run_mlx_eval
 
