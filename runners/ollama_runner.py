@@ -135,7 +135,7 @@ def run_ollama_eval(args):
 
         with tqdm(total=len(df)) as pbar:
             for row in df.to_dict("records"):
-                row = process_row(llm, row, args)
+                row = process_row(client, row, args)
                 output_rows.append(row)
                 if row["correct"]:
                     total_correct += 1
