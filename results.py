@@ -13,7 +13,7 @@ def load_and_label_csv(filepath, model_name, scenario):
 
 def main():
     # CSV 파일 경로 설정 (여기서는 /mnt/data 디렉터리를 가정)
-    base_dir = '/mnt/data'
+    base_dir = '.'
 
     # 불러올 CSV 파일과, 그에 대응하는 (모델명, 시나리오)를 매핑
     files_info = [
