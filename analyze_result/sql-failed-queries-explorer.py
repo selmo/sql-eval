@@ -195,8 +195,59 @@ class SQLFailedQueriesExplorer:
         metadata_frame = ttk.LabelFrame(self.query_comparison_tab, text="쿼리 메타데이터")
         metadata_frame.pack(fill=tk.X, expand=False, padx=10, pady=5)
 
-        self.metadata_text = scrolledtext.ScrolledText(metadata_frame, wrap=tk.WORD, height=5)
-        self.metadata_text.pack(fill=tk.X, expand=True, padx=5, pady=5)
+        # 메타데이터용 내부 탭 생성
+        self.metadata_notebook = ttk.Notebook(metadata_frame)
+        self.metadata_notebook.pack(fill=tk.X, expand=True, padx=5, pady=5)
+
+        # 기본 메타데이터 탭
+        self.basic_metadata_tab = ttk.Frame(self.metadata_notebook)
+        self.metadata_notebook.add(self.basic_metadata_tab, text="기본 정보")
+
+        # ▽ 기존 ScrolledText 삭제하고 Treeview + 스크롤바로 교체
+        cols = ("항목", "값")
+        self.basic_table = ttk.Treeview(
+            self.basic_metadata_tab, columns=cols, show="headings", height=6
+        )
+        self.basic_table.heading("항목", text="항목")
+        self.basic_table.heading("값", text="값")
+        self.basic_table.column("항목", width=120, anchor="center")
+        self.basic_table.column("값", width=400)
+
+        scroll = ttk.Scrollbar(
+            self.basic_metadata_tab, orient="vertical", command=self.basic_table.yview
+        )
+        self.basic_table.configure(yscrollcommand=scroll.set)
+
+        self.basic_table.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # 질문 탭
+        self.question_tab = ttk.Frame(self.metadata_notebook)
+        self.metadata_notebook.add(self.question_tab, text="질문")
+
+        self.question_text = scrolledtext.ScrolledText(self.question_tab, wrap=tk.WORD, height=4)
+        self.question_text.pack(fill=tk.BOTH, expand=True)
+
+        # 지시사항 탭
+        self.instructions_tab = ttk.Frame(self.metadata_notebook)
+        self.metadata_notebook.add(self.instructions_tab, text="지시사항")
+
+        self.instructions_text = scrolledtext.ScrolledText(self.instructions_tab, wrap=tk.WORD, height=4)
+        self.instructions_text.pack(fill=tk.BOTH, expand=True)
+
+        # 오류 메시지 탭
+        self.error_msg_tab = ttk.Frame(self.metadata_notebook)
+        self.metadata_notebook.add(self.error_msg_tab, text="오류 메시지")
+
+        self.error_msg_text = scrolledtext.ScrolledText(self.error_msg_tab, wrap=tk.WORD, height=4)
+        self.error_msg_text.pack(fill=tk.BOTH, expand=True)
+
+        # 기타 메타데이터 탭
+        self.other_metadata_tab = ttk.Frame(self.metadata_notebook)
+        self.metadata_notebook.add(self.other_metadata_tab, text="기타 정보")
+
+        self.other_metadata_text = scrolledtext.ScrolledText(self.other_metadata_tab, wrap=tk.WORD, height=4)
+        self.other_metadata_text.pack(fill=tk.BOTH, expand=True)
 
         # 쿼리 비교 탭 구성
         comparison_frame = ttk.Frame(self.query_comparison_tab)
@@ -514,36 +565,80 @@ class SQLFailedQueriesExplorer:
 
         # 쿼리 정보 가져오기
         generated_query = row_data.get('generated_query', '')
-        expected_query = row_data.get('expected_query', '')
+        expected_query = row_data.get('query', '')
 
-        # 메타데이터 표시
-        self.metadata_text.delete(1.0, tk.END)
+        # 모든 메타데이터 텍스트 위젯 초기화
+        # Treeview는 행을 모두 지우는 식으로 초기화
+        for row in self.basic_table.get_children():
+            self.basic_table.delete(row)
+        self.question_text.delete(1.0, tk.END)
+        self.instructions_text.delete(1.0, tk.END)
+        self.error_msg_text.delete(1.0, tk.END)
+        self.other_metadata_text.delete(1.0, tk.END)
 
         # 메타데이터 구성
-        metadata = f"""소스 파일: {source_file}
-모델: {model.upper()}
-데이터셋: {dataset.upper()}
-카테고리: {row_data.get('query_category', 'N/A') if pd.notna(row_data.get('query_category')) else 'N/A'}
-오류 유형: {row_data.get('error_type', 'N/A')}"""
+        kv_pairs = [
+            ("소스 파일", source_file),
+            ("모델", model.upper()),
+            ("데이터셋", dataset.upper()),
+            ("카테고리", row_data.get("query_category", "N/A")
+            if pd.notna(row_data.get("query_category")) else "N/A"),
+            ("오류 유형", row_data.get("error_type", "N/A")),
+        ]
 
-        # 추가 메타데이터가 있으면 표시
-        if 'error_message' in row_data and pd.notna(row_data['error_message']):
-            metadata += f"오류 메시지: {row_data['error_message']}\n"
+        # 짧은 수치 데이터 추가
+        for key in ["latency_seconds", "execution_time", "db_name", "db_type", "exact_match", "timeout", "tokens_used", "cot_pregen"]:
+            if key in row_data and pd.notna(row_data[key]):
+                kv_pairs.append((key, row_data[key]))
 
-        if 'execution_time' in row_data and pd.notna(row_data['execution_time']):
-            metadata += f"실행 시간: {row_data['execution_time']}초\n"
+        # Treeview에 삽입
+        for k, v in kv_pairs:
+            self.basic_table.insert("", tk.END, values=(k, v))
 
-        if 'latency_seconds' in row_data and pd.notna(row_data['latency_seconds']):
-            metadata += f"지연 시간: {row_data['latency_seconds']}초\n"
+        # 질문 탭
+        if 'question' in row_data and pd.notna(row_data['question']):
+            self.question_text.insert(tk.END, row_data['question'])
+            self.metadata_notebook.tab(1, state="normal")  # 질문 탭 활성화
+        else:
+            self.question_text.insert(tk.END, "질문 정보가 없습니다.")
+            self.metadata_notebook.tab(1, state="disabled")  # 질문 탭 비활성화
 
-        # 추가 필드들에 대한 정보 표시
+        # 지시사항 탭
+        if 'instructions' in row_data and pd.notna(row_data['instructions']):
+            self.instructions_text.insert(tk.END, row_data['instructions'])
+            self.metadata_notebook.tab(2, state="normal")  # 지시사항 탭 활성화
+        else:
+            self.instructions_text.insert(tk.END, "지시사항 정보가 없습니다.")
+            self.metadata_notebook.tab(2, state="disabled")  # 지시사항 탭 비활성화
+
+        # 오류 메시지 탭
+        if 'error_msg' in row_data and pd.notna(row_data['error_msg']):
+            self.error_msg_text.insert(tk.END, row_data['error_msg'])
+            self.metadata_notebook.tab(3, state="normal")  # 오류 메시지 탭 활성화
+        else:
+            self.error_msg_text.insert(tk.END, "오류 메시지가 없습니다.")
+            self.metadata_notebook.tab(3, state="disabled")  # 오류 메시지 탭 비활성화
+
+        # 기타 메타데이터 수집
+        other_metadata = ""
+        excluded_keys = ['generated_query', 'query', 'query_category', 'error_type',
+                         'error_msg', 'execution_time', 'latency_seconds', 'correct',
+                         'error_query_gen', 'error_db_exec', 'question', 'instructions',
+                         'db_name', 'db_type', "exact_match", "timeout", "tokens_used", "cot_pregen"]
+
         for key, value in row_data.items():
-            if key not in ['generated_query', 'expected_query', 'query_category', 'error_type',
-                           'error_message', 'execution_time', 'latency_seconds', 'correct',
-                           'error_query_gen', 'error_db_exec'] and pd.notna(value):
-                metadata += f"{key}: {value}\n"
+            if key not in excluded_keys and pd.notna(value):
+                other_metadata += f"{key}: {value}\n\n"
 
-        self.metadata_text.insert(tk.END, metadata)
+        if other_metadata:
+            self.other_metadata_text.insert(tk.END, other_metadata)
+            self.metadata_notebook.tab(4, state="normal")  # 기타 정보 탭 활성화
+        else:
+            self.other_metadata_text.insert(tk.END, "추가 메타데이터가 없습니다.")
+            self.metadata_notebook.tab(4, state="disabled")  # 기타 정보 탭 비활성화
+
+        # 기본 탭으로 초기화
+        self.metadata_notebook.select(0)
 
         # 텍스트 위젯 초기화
         self.generated_sql_text.delete(1.0, tk.END)
